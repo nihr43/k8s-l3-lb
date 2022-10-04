@@ -107,6 +107,7 @@ def existing_ips_in_range(dev, netifaces, net_range, ipaddress):
 if __name__ == '__main__':
     def privileged_main():
         import os
+        import socket
         import netifaces
         import logging
         import ipaddress
@@ -115,7 +116,7 @@ if __name__ == '__main__':
         logging.basicConfig(level=logging.INFO)
         config.load_kube_config()
 
-        current_node = os.getenv('L3LB_NODE')
+        current_node = socket.gethostname()
 
         while True:
             my_valid_ips = []
