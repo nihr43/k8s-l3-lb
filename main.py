@@ -16,12 +16,6 @@ import random
 from time import sleep
 
 
-class loadbalancer():
-    def __init__(self, ip, nodes):
-        self.ip = ip
-        self.nodes = []
-
-
 def get_address_state(dev: str, address: str, netifaces) -> bool:
     '''
     determine whether a given address is already assigned
