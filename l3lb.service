@@ -1,0 +1,16 @@
+[Unit]
+Description=l3 k8s loadbalancer
+After=network-online.target firewalld.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/l3lb
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=process
+Restart=on-failure
+StartLimitBurst=3
+StartLimitInterval=60s
+
+[Install]
+WantedBy=multi-user.target
