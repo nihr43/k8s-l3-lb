@@ -115,7 +115,7 @@ if __name__ == '__main__':
         logging.basicConfig(level=logging.INFO)
         config.load_kube_config()
 
-        current_node = 'x470d4u-zen-9679c'
+        current_node = os.getenv('L3LB_NODE')
 
         while True:
             my_valid_ips = []
