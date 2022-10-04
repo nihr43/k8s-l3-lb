@@ -35,21 +35,21 @@ def get_address_state(dev: str, address: str, netifaces) -> bool:
         return False
 
 
-def provision_address(dev: str, address: str, netmask: str, logging, netifaces) -> None:
+def provision_address(dev: str, address: str, netmask: str, logging, netifaces, os) -> None:
     '''
     assure an address is assigned to a device
     '''
-    if get_address_state(dev, address) is False:
-        logging.info('assuming address')
+    if get_address_state(dev, address, netifaces) is False:
+        logging.info('assuming address ' + address)
         os.system('ip address add ' + address + netmask + ' dev ' + dev)
 
 
-def enforce_no_address(dev: str, address: str, netmask: str, logging, netifaces) -> None:
+def enforce_no_address(dev: str, address: str, netmask: str, logging, netifaces, os) -> None:
     '''
     assure an address is not assigned to a device
     '''
-    if get_address_state(dev, address) is True:
-        logging.info('forfeiting address')
+    if get_address_state(dev, address, netifaces) is True:
+        logging.info('forfeiting address ' + address)
         os.system('ip address del ' + address + netmask + ' dev ' + dev)
 
 
