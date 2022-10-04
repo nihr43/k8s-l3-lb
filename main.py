@@ -137,7 +137,7 @@ if __name__ == '__main__':
             for ip in my_valid_ips:
                 provision_address('lo', ip, '/32', logging, netifaces, os)
 
-            invalid_ips = list(set(existing_ips_in_range('lo', netifaces, '10.0.200.0/24', ipaddress)).difference(my_valid_ips))
+            invalid_ips = list(set(existing_ips_in_range('lo', netifaces, '10.0.100.0/24', ipaddress)).difference(my_valid_ips))
 
             for ip in invalid_ips:
                 enforce_no_address('lo', ip, '/32', logging, netifaces, os)
