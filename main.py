@@ -66,10 +66,16 @@ def local_pod_match(lb) -> bool:
     '''
 
 
-def get_loadbalancers():
+def get_loadbalancers(client):
     '''
-    get a list of all loadbalancer objects
+    get a list of services of type LoadBalancer
     '''
+    api = client.CoreV1Api()
+    lbs = []
+    for service in api.list_service_for_all_namespaces().items:
+        if service.spec.type == 'LoadBalancer':
+            lbs.append(service)
+    return lbs
 
 
 if __name__ == '__main__':
