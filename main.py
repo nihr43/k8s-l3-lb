@@ -83,27 +83,63 @@ def get_loadbalancers(client):
     return lbs
 
 
+def existing_ips_in_range(dev, netifaces, net_range, ipaddress):
+    '''
+    get a list of all ips in range which are currently assigned to an interface
+    '''
+    parsed_addresses = []
+    ifaces = netifaces.ifaddresses(dev)
+
+    for i in ifaces:
+        for j in ifaces[i]:
+            for a, b in j.items():
+                if a == 'addr':
+                    try:
+                        if type(ipaddress.ip_address(b)) is ipaddress.IPv4Address:
+                            if ipaddress.IPv4Address(b) in ipaddress.IPv4Network(net_range):
+                                parsed_addresses.append(b)
+                    except ValueError:
+                        pass
+
+    return parsed_addresses
+
+
 if __name__ == '__main__':
     def privileged_main():
         import os
         import netifaces
         import logging
+        import ipaddress
         from kubernetes import client, config
 
         logging.basicConfig(level=logging.INFO)
         config.load_kube_config()
 
-        namespace = 'default'
+        current_node = 'x470d4u-zen-9679c'
 
         while True:
+            my_valid_ips = []
             sleep(random.randrange(1, 15))
 
             for lb in get_loadbalancers(client):
-                if local_pod_match(lb):
-                    provision_address('lo', lb.ip, '255.255.255.255', logging, netifaces)
-                else:
-                    # to maintain consistent state, we always actively enforce_no_address if no match
-                    enforce_no_address('lo', lb.ip, '255.255.255.255', logging, netifaces)
+                if local_pod_match(client, lb, current_node, logging):
+                    for ip in lb.spec.external_i_ps:
+                        my_valid_ips.append(ip)
 
+            '''
+            in order to assure absence of leftover ips, or ips which belong to
+            other nodes due to topology changes or pod migration, we create
+            the list my_valid_ips and check any found addresses in the provided
+            range against it.  this mechanism allows us to catch deletions -
+            without any persisted state outside of kubernetes or the currently
+            assigned addresses themselves.
+            '''
+            for ip in my_valid_ips:
+                provision_address('lo', ip, '/32', logging, netifaces, os)
+
+            invalid_ips = list(set(existing_ips_in_range('lo', netifaces, '10.0.200.0/24', ipaddress)).difference(my_valid_ips))
+
+            for ip in invalid_ips:
+                enforce_no_address('lo', ip, '/32', logging, netifaces, os)
 
     privileged_main()
