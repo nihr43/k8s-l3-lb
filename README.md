@@ -69,23 +69,22 @@ the following shows an anycast scenario: a stateless nginx deployment has been s
 	nexthop via inet6 fe80::ae1f:6bff:fe20:b4e2 dev enp3s8f0 weight 1
 ```
 
-example kubernetes_service resource being used in terraform:
+example service manifest to provision 10.0.100.6 for deployment labeled 'app: nginx':
 
 ```
-resource "kubernetes_service" "jenkins" {
-  metadata {
-    name = "jenkins"
-  }
-  spec {
-    selector = {
-      app = "jenkins"
-    }
-    port {
-      port        = "80"
-      target_port = "8080"
-    }
-    type = "LoadBalancer"
-    external_ips  = ["10.0.100.3"]
-  }
-}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  ports:
+    - port: 80
+  selector:
+    app: nginx
+  type: LoadBalancer
+  externalIPs:
+    - 10.0.100.6
 ```
