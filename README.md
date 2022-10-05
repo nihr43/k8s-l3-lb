@@ -8,7 +8,9 @@ This project is similar to metallb, though the scope is strictly limited to brin
 
 This differs from metallb in bgp mode as this daemon does not peer with bgp itself - the /32 loopback addresses provide a simple "interface" between the two systems.
 
-The pure-l3 approach allows us to provision pod-aware unicast or anycast loadbalancer endpoints, while benefiting from all the attributes of an intelligently routed datacenter network.
+## installation
+
+An example systemd unit and ansible task file are included in this repo.  The daemon is intended to run on all kubernetes nodes, and expects to find `/root/.kube/config`.
 
 ## example
 
