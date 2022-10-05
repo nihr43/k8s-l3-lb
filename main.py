@@ -63,7 +63,6 @@ def local_pod_match(client, lb, current_node, logging) -> bool:
     for pod in api.list_pod_for_all_namespaces().items:
         if pod.spec.node_name == current_node:
             if pod.metadata.labels.get('app') == lb.spec.selector.get('app'):
-                logging.info(pod.metadata.name + ' found on local node matching loadbalancer ' + lb.spec.external_i_ps[0]) # TODO: if ever support more than one ip, this needs to change
                 matched_pods.append(pod)
     if len(matched_pods) == 0:
         return False
