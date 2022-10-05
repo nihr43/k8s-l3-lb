@@ -1,6 +1,6 @@
 # k8s-l3-lb
 
-An external LoadBalancer implementation for kubernetes in a pure-l3 network.
+An pod-aware external LoadBalancer implementation for kubernetes in a pure-l3 network.  l3-lb is intended to run alongside [bgp on each k8s node](https://github.com/nihr43/bgp-unnumbered) in a baremetal cluster, resulting in a network where the spine and leaf routers themselves are aware of kubernetes service declarations, and are able to efficiently route directly to the correct physical hosts running the matched pods.  If replicas > 1, a single ip is provisioned in an anycast arrangement, enabling equal-cost-multipath load balancing from the perspective of an equally-connected router.
 
 ## implementation
 
@@ -56,6 +56,15 @@ Oct 04 19:32:37 x470d4u-zen-420c2 l3lb[1544]: INFO:root:minio-54666bfbb5-n2mlx f
 Oct 04 19:32:37 x470d4u-zen-420c2 l3lb[1544]: INFO:root:jenkins-5dfdf8cf55-gh225 found on local node matching loadbalancer 10.0.100.3
 Oct 04 19:32:38 x470d4u-zen-420c2 l3lb[1544]: INFO:root:assuming address 10.0.100.1
 Oct 04 19:32:38 x470d4u-zen-420c2 l3lb[1544]: INFO:root:assuming address 10.0.100.3
+```
+
+the following shows an anycast scenario: a stateless nginx deployment has been scaled up, resulting in 10.0.100.10 being provisioned on three different k8s nodes.  the effect is that the spine router shown has learned multiple routes for 10.0.100.10/32 via bgp, and and equal cost multi-path route has been installed in the kernel routing table.  the network itself is routing directly to and load balancing for pods on different physical hosts.
+
+```
+10.0.100.10 nhid 41 proto bgp metric 20
+	nexthop via inet6 fe80::aaa1:59ff:fe08:b8f4 dev enp3s6f1 weight 1
+	nexthop via inet6 fe80::d250:99ff:feda:f95a dev enp3s8f1 weight 1
+	nexthop via inet6 fe80::ae1f:6bff:fe20:b4e2 dev enp3s8f0 weight 1
 ```
 
 example kubernetes_service resource being used in terraform:
