@@ -120,7 +120,7 @@ if __name__ == '__main__':
 
         while True:
             my_valid_ips = []
-            sleep(random.randrange(1, 15))
+            sleep(random.randrange(1, 60))
 
             for lb in get_loadbalancers(client):
                 if local_pod_match(client, lb, current_node, logging):
