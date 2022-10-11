@@ -53,14 +53,13 @@ def enforce_no_address(dev: str, address: str, netmask: str, logging, netifaces,
         os.system('ip address del ' + address + netmask + ' dev ' + dev)
 
 
-def local_pod_match(client, lb, current_node, logging) -> bool:
+def local_pod_match(pods, lb, current_node, logging) -> bool:
     '''
     determine if a LoadBalancer's 'selector' matches any local pods.
     this is a determining factor whether we enforce the address.
     '''
-    api = client.CoreV1Api()
     matched_pods = []
-    for pod in api.list_pod_for_all_namespaces().items:
+    for pod in pods.items:
         if pod.spec.node_name == current_node:
             if pod.metadata.labels.get('app') == lb.spec.selector.get('app'):
                 matched_pods.append(pod)
@@ -68,6 +67,15 @@ def local_pod_match(client, lb, current_node, logging) -> bool:
         return False
     else:
         return True
+
+
+def get_pods(client):
+    '''
+    get all pods
+    '''
+    api = client.CoreV1Api()
+    pods = api.list_pod_for_all_namespaces()
+    return pods
 
 
 def get_loadbalancers(client):
@@ -120,9 +128,10 @@ if __name__ == '__main__':
         while True:
             my_valid_ips = []
             sleep(random.randrange(1, 60))
+            pods = get_pods(client)
 
             for lb in get_loadbalancers(client):
-                if local_pod_match(client, lb, current_node, logging):
+                if local_pod_match(pods, lb, current_node, logging):
                     for ip in lb.spec.external_i_ps:
                         my_valid_ips.append(ip)
 
