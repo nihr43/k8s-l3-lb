@@ -1,12 +1,12 @@
 # k8s-l3-lb
 
-An pod-aware external LoadBalancer implementation for kubernetes in a pure-l3 network.  l3-lb is intended to run alongside [bgp on each k8s node](https://github.com/nihr43/bgp-unnumbered) in a baremetal cluster, resulting in a network where the spine and leaf routers themselves are aware of kubernetes service declarations, and are able to efficiently route directly to the correct physical hosts running the matched pods.  If replicas > 1, a single ip is provisioned in an anycast arrangement, enabling equal-cost-multipath load balancing from the perspective of an equally-connected router.
+A pod-aware external LoadBalancer implementation for kubernetes in a pure-l3 network.  l3-lb is intended to run alongside [bgp on each k8s node](https://github.com/nihr43/bgp-unnumbered) in a baremetal cluster, resulting in a network where the routers themselves become aware of kubernetes service ips, and are able to route directly to the physical hosts running the matched pods.  If replicas > 1, a single ip is duplicated in an anycast arrangement, enabling equal-cost-multipath load balancing from the perspective of an equally-connected router, such as a clos spine.
 
 ## implementation
 
 This project is similar to metallb, though the scope is strictly limited to bringing up /32 ip addresses on the localhost interfaces of k8s cluster nodes - for which routes are advertised by bgp deamons running on the physical hosts.
 
-This differs from metallb in bgp mode as this daemon does not peer with bgp itself - the /32 loopback addresses provide a simple "interface" between the two systems.
+This differs from metallb in bgp mode as this daemon does not peer with bgp itself - the /32 loopback addresses provide a simple "interface" between the two systems.  FRR is configured to listen for and advertise any prefix found on the lo interface.
 
 ## installation
 
