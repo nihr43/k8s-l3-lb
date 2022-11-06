@@ -127,6 +127,9 @@ if __name__ == '__main__':
         network = os.getenv('L3LB_NETWORK')
         interface = os.getenv('L3LB_INTERFACE')
 
+        logging.info('using network ' + network)
+        logging.info('using interface ' + interface)
+
         while True:
             my_valid_ips = []
             sleep(random.randrange(1, 60))
