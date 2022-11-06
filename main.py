@@ -124,6 +124,8 @@ if __name__ == '__main__':
         config.load_kube_config()
 
         current_node = socket.gethostname()
+        network = os.getenv('L3LB_NETWORK')
+        interface = os.getenv('L3LB_INTERFACE')
 
         while True:
             my_valid_ips = []
@@ -144,11 +146,11 @@ if __name__ == '__main__':
             assigned addresses themselves.
             '''
             for ip in my_valid_ips:
-                provision_address('lo', ip, '/32', logging, netifaces, os)
+                provision_address(interface, ip, '/32', logging, netifaces, os)
 
-            invalid_ips = list(set(existing_ips_in_range('lo', netifaces, '10.0.100.0/24', ipaddress)).difference(my_valid_ips))
+            invalid_ips = list(set(existing_ips_in_range(interface, netifaces, network, ipaddress)).difference(my_valid_ips))
 
             for ip in invalid_ips:
-                enforce_no_address('lo', ip, '/32', logging, netifaces, os)
+                enforce_no_address(interface, ip, '/32', logging, netifaces, os)
 
     privileged_main()

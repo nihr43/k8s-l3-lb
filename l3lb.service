@@ -5,6 +5,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
+EnvironmentFile=-/etc/default/%p
 ExecStart=/usr/sbin/l3lb
 ExecReload=/bin/kill -s HUP $MAINPID
 KillMode=process

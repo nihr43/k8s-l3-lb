@@ -33,6 +33,13 @@
    mode: 0755
   notify: daemon-reload
 
+- name: copy l3lb unit envfile
+  get_url:
+   url: https://raw.githubusercontent.com/nihr43/k8s-l3-lb/main/l3lb
+   dest: /etc/default/l3lb
+   mode: 0744
+  notify: restart l3lb
+
 - name: enable l3lb
   service:
    name: l3lb
