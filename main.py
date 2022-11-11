@@ -10,6 +10,21 @@ False
 But we should have 127.0.0.1:
 >>> get_address_state('lo', '127.0.0.1', netifaces)
 True
+
+>>> import pylxd
+>>> client = pylxd.Client()
+>>> config = {'name': 'l3lb-testing',
+...           'source': {'type': 'image',
+...                      'mode': 'pull',
+...                      'server': 'https://images.linuxcontainers.org',
+...                      'protocol': 'simplestreams',
+...                      'alias': 'alpine/edge'}}
+>>> inst = client.instances.create(config, wait=True)
+>>> inst.start(wait=True)
+>>> inst.state().network['lo']['addresses'][0]
+{'family': 'inet', 'address': '127.0.0.1', 'netmask': '8', 'scope': 'local'}
+>>> inst.stop(wait=True)
+>>> inst.delete(wait=True)
 '''
 
 import random
