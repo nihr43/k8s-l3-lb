@@ -10,7 +10,9 @@ This differs from metallb in bgp mode as this daemon does not peer with bgp itse
 
 ## installation
 
-An example systemd unit and ansible task file are included in this repo.  The daemon is intended to run on all kubernetes nodes, and expects to find `/root/.kube/config`.
+l3lb can run as either a daemonset or a systemd unit.  For a 'classic' systemd unit installation, see `ansible_installation.example`.
+
+Alternatively, l3lb can run as daemonset within k8s itself.  `kubectl apply -f daemonset.yml`.  Three capabilities are mapped into the containers to allow this to work: `hostNetwork: true`, `automountServiceAccountToken: true`, `capabilities: add: ["NET_ADMIN"]`.
 
 ## example
 

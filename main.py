@@ -136,7 +136,11 @@ if __name__ == '__main__':
         from kubernetes import client, config
 
         logging.basicConfig(level=logging.INFO)
-        config.load_kube_config()
+
+        if os.getenv('L3LB_IN_K8S'):
+            config.load_incluster_config()
+        else:
+            config.load_kube_config()
 
         current_node = socket.gethostname()
         network = os.getenv('L3LB_NETWORK')
