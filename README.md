@@ -12,7 +12,10 @@ This differs from metallb in bgp mode as this daemon does not peer with bgp itse
 
 l3lb can run as either a daemonset or a systemd unit.  For a 'classic' systemd unit installation, see `ansible_installation.example`.
 
-Alternatively, l3lb can run as daemonset within k8s itself.  `kubectl apply -f daemonset.yml`.  Three capabilities are mapped into the containers to allow this to work: `hostNetwork: true`, `automountServiceAccountToken: true`, `capabilities: add: ["NET_ADMIN"]`.
+Alternatively, l3lb can run as daemonset within k8s itself.  `kubectl apply -f daemonset.yml`.  Three capabilities are mapped into the containers to allow this to work: `hostNetwork: true`, `automountServiceAccountToken: true`, `capabilities: add: ["NET_ADMIN"]`.  This style of approach is used by the likes of metallb, traefik, rook, calico, etc.
+
+Assuming the existence of a docker registry at `images.local:5000`, `make` will build and push the project.
+`daemonset.yml` references this uri.
 
 ## example
 
