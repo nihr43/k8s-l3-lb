@@ -4,7 +4,7 @@ A pod-aware external LoadBalancer implementation for kubernetes in a pure-l3 net
 
 ## implementation
 
-This project is similar to metallb, and if you're interested in using bgp with kubernetes, you should look to metallb in bgp mode.
+This project is similar to metallb, which is a vastly more complete solution.
 
 This differs from metallb in bgp mode as this daemon does not peer with bgp itself - the /32 loopback addresses provides a simple "interface" between the two systems.  FRR is configured to listen for and advertise any prefix found on the lo interface.  A caveat to this approach is that ingress controllers will not preserve source ips when handing off connections to backing services.  nginx-ingress for example will log the correct source ip of a request, but the backing service will see a request from the cluster ip of the ingress pod.  In the future i hope to experiment with advertising prefixes from python directly to remove the ExternalIP component.
 
