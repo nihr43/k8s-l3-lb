@@ -18,7 +18,7 @@ spec:
       automountServiceAccountToken: true
       containers:
       - name: l3lb
-        image: images.local:5000/l3lb
+        image: images.local:30500/l3lb
         env:
         - name: "L3LB_IN_K8S"
           value: "true"
