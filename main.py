@@ -79,7 +79,7 @@ def local_pod_match(pods, lb, current_node, logging) -> bool:
             for label in lb.spec.selector.items():
                 # all labels must match.  give up if any one label does not.
                 if pod.metadata.labels.get(label) != lb.spec.selector.get(label):
-                    break
+                    return False
                 else:
                     matched_pods.append(pod)
     if len(matched_pods) == 0:
