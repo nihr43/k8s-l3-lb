@@ -1,10 +1,10 @@
 push: image
 	docker push images.local:30500/l3lb
 
-image: doctest
+image: lint
 	docker build . --tag=images.local:30500/l3lb
 
-doctest: lint
+doctest:
 	python3 -m doctest main.py
 
 lint:
