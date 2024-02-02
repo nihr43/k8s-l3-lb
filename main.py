@@ -73,19 +73,26 @@ def enforce_no_address(dev: str, address: str, netmask: str, netifaces, os) -> N
         os.system("ip address del " + address + netmask + " dev " + dev)
 
 
-def local_pod_match(pods, lb, current_node) -> bool:
+def local_pod_match(pods, lb) -> bool:
     """
     determine if a LoadBalancer's 'selector' matches any local pods.
     this is a determining factor whether we enforce the address.
     """
     matched_pods = []
-    for pod in pods.items:
-        if pod.spec.node_name == current_node:
-            for label in lb.spec.selector.items():
-                # all labels must match.  give up if any one label does not.
-                if pod.metadata.labels.get(label) != lb.spec.selector.get(label):
-                    return False
-                else:
+
+    for pod in pods:
+        for selector in lb.spec.selector:
+            # all labels must match.  give up if any one label does not.
+            if pod.metadata.labels.get(selector):
+                if pod.metadata.labels.get(selector) == lb.spec.selector.get(selector):
+                    print(
+                        "pod {} matches lb {} with selector {}={}".format(
+                            pod.metadata.name,
+                            lb.metadata.name,
+                            selector,
+                            lb.spec.selector.get(selector),
+                        )
+                    )
                     matched_pods.append(pod)
     if len(matched_pods) == 0:
         return False
@@ -95,11 +102,13 @@ def local_pod_match(pods, lb, current_node) -> bool:
 
 def get_pods(client):
     """
-    get all pods
+    get all local pods
     """
     api = client.CoreV1Api()
-    pods = api.list_pod_for_all_namespaces()
-    return pods
+    current_node = socket.gethostname()
+    all_pods = api.list_pod_for_all_namespaces()
+    local_pods = [pod for pod in all_pods.items if pod.spec.node_name == current_node]
+    return local_pods
 
 
 def get_loadbalancers(client):
@@ -143,7 +152,6 @@ if __name__ == "__main__":
     else:
         config.load_kube_config()
 
-    current_node = socket.gethostname()
     network = os.getenv("L3LB_NETWORK")
     interface = os.getenv("L3LB_INTERFACE")
 
@@ -152,11 +160,11 @@ if __name__ == "__main__":
 
     while True:
         my_valid_ips = []
-        sleep(random.randrange(1, 60))
+        sleep(random.randrange(1, 10))
         pods = get_pods(client)
 
         for lb in get_loadbalancers(client):
-            if local_pod_match(pods, lb, current_node):
+            if local_pod_match(pods, lb):
                 for ip in lb.spec.external_i_ps:
                     my_valid_ips.append(ip)
 
