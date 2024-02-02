@@ -8,6 +8,7 @@ doctest:
 	python3 -m doctest main.py
 
 lint:
+	black main.py
 	flake8 main.py --ignore=E501
 
 jenkins:
