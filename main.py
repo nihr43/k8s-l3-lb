@@ -102,13 +102,14 @@ def local_pod_match(pods, lb) -> bool:
 
 def get_pods(client):
     """
-    get all local pods
+    get all running local pods
     """
     api = client.CoreV1Api()
     current_node = socket.gethostname()
     all_pods = api.list_pod_for_all_namespaces()
     local_pods = [pod for pod in all_pods.items if pod.spec.node_name == current_node]
-    return local_pods
+    running_pods = [pod for pod in local_pods if pod.status.phase == "Running"]
+    return running_pods
 
 
 def get_loadbalancers(client):
