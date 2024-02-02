@@ -82,7 +82,7 @@ def local_pod_match(pods, lb) -> bool:
 
     for pod in pods:
         for selector in lb.spec.selector:
-            # all labels must match.  give up if any one label does not.
+            # if a pod has any label that matches the lb's selector, it is considered a match
             if pod.metadata.labels.get(selector):
                 if pod.metadata.labels.get(selector) == lb.spec.selector.get(selector):
                     print(
