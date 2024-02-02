@@ -30,7 +30,6 @@ True
 import os
 import socket
 import netifaces
-import logging
 import ipaddress
 import random
 from time import sleep
@@ -56,29 +55,25 @@ def get_address_state(dev: str, address: str, netifaces) -> bool:
         return False
 
 
-def provision_address(
-    dev: str, address: str, netmask: str, logging, netifaces, os
-) -> None:
+def provision_address(dev: str, address: str, netmask: str, netifaces, os) -> None:
     """
     assure an address is assigned to a device
     """
     if get_address_state(dev, address, netifaces) is False:
-        logging.info("assuming address " + address)
+        print("assuming address " + address)
         os.system("ip address add " + address + netmask + " dev " + dev)
 
 
-def enforce_no_address(
-    dev: str, address: str, netmask: str, logging, netifaces, os
-) -> None:
+def enforce_no_address(dev: str, address: str, netmask: str, netifaces, os) -> None:
     """
     assure an address is not assigned to a device
     """
     if get_address_state(dev, address, netifaces) is True:
-        logging.info("forfeiting address " + address)
+        print("forfeiting address " + address)
         os.system("ip address del " + address + netmask + " dev " + dev)
 
 
-def local_pod_match(pods, lb, current_node, logging) -> bool:
+def local_pod_match(pods, lb, current_node) -> bool:
     """
     determine if a LoadBalancer's 'selector' matches any local pods.
     this is a determining factor whether we enforce the address.
@@ -143,8 +138,6 @@ def existing_ips_in_range(dev, netifaces, net_range, ipaddress):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-
     if os.getenv("L3LB_IN_K8S"):
         config.load_incluster_config()
     else:
@@ -154,8 +147,8 @@ if __name__ == "__main__":
     network = os.getenv("L3LB_NETWORK")
     interface = os.getenv("L3LB_INTERFACE")
 
-    logging.info("using network " + network)
-    logging.info("using interface " + interface)
+    print("using network " + network)
+    print("using interface " + interface)
 
     while True:
         my_valid_ips = []
@@ -163,7 +156,7 @@ if __name__ == "__main__":
         pods = get_pods(client)
 
         for lb in get_loadbalancers(client):
-            if local_pod_match(pods, lb, current_node, logging):
+            if local_pod_match(pods, lb, current_node):
                 for ip in lb.spec.external_i_ps:
                     my_valid_ips.append(ip)
 
@@ -176,7 +169,7 @@ if __name__ == "__main__":
             assigned addresses themselves.
             """
         for ip in my_valid_ips:
-            provision_address(interface, ip, "/32", logging, netifaces, os)
+            provision_address(interface, ip, "/32", netifaces, os)
 
         invalid_ips = list(
             set(
@@ -185,4 +178,4 @@ if __name__ == "__main__":
         )
 
         for ip in invalid_ips:
-            enforce_no_address(interface, ip, "/32", logging, netifaces, os)
+            enforce_no_address(interface, ip, "/32", netifaces, os)
