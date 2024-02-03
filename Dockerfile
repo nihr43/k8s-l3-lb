@@ -1,4 +1,4 @@
-from alpine
+from alpine:3.19
 
 run apk add python3 py3-pip \
             python3-dev gcc musl-dev linux-headers --no-cache
