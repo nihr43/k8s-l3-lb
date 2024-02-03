@@ -40,7 +40,7 @@ else:
     debug = False
 
 
-def get_address_state(dev: str, address: str, netifaces) -> bool:
+def get_address_state(dev: str, address: str) -> bool:
     """
     determine whether a given address is already assigned
     """
@@ -59,22 +59,22 @@ def get_address_state(dev: str, address: str, netifaces) -> bool:
         return False
 
 
-def provision_address(dev: str, address: str, netmask: str, netifaces, os) -> None:
+def provision_address(dev: str, address: str, netmask: str, os) -> None:
     """
     assure an address is assigned to a device
     """
     if debug:
         print("{} is being enforced".format(address))
-    if get_address_state(dev, address, netifaces) is False:
+    if get_address_state(dev, address) is False:
         print("assuming address " + address)
         os.system("ip address add " + address + netmask + " dev " + dev)
 
 
-def enforce_no_address(dev: str, address: str, netmask: str, netifaces, os) -> None:
+def enforce_no_address(dev: str, address: str, netmask: str, os) -> None:
     """
     assure an address is not assigned to a device
     """
-    if get_address_state(dev, address, netifaces) is True:
+    if get_address_state(dev, address) is True:
         print("forfeiting address " + address)
         os.system("ip address del " + address + netmask + " dev " + dev)
 
@@ -137,7 +137,7 @@ def get_loadbalancers(client):
     return lbs
 
 
-def existing_ips_in_range(dev, netifaces, net_range, ipaddress):
+def existing_ips_in_range(dev, net_range):
     """
     get a list of all ips in range which are currently assigned to an interface
     """
@@ -194,16 +194,14 @@ if __name__ == "__main__":
             assigned addresses themselves.
             """
         for ip in my_valid_ips:
-            provision_address(interface, ip, "/32", netifaces, os)
+            provision_address(interface, ip, "/32", os)
 
         invalid_ips = list(
-            set(
-                existing_ips_in_range(interface, netifaces, network, ipaddress)
-            ).difference(my_valid_ips)
+            set(existing_ips_in_range(interface, network)).difference(my_valid_ips)
         )
 
         for ip in invalid_ips:
-            enforce_no_address(interface, ip, "/32", netifaces, os)
+            enforce_no_address(interface, ip, "/32", os)
 
         if debug:
             timediff = datetime.now() - start_time
