@@ -178,26 +178,23 @@ if __name__ == "__main__":
             start_time = datetime.now()
 
         pods = get_pods(client)
-        my_valid_ips = []
+        candidate_ips = []
 
         for lb in get_loadbalancers(client):
             if local_pod_match(pods, lb):
                 for ip in lb.spec.external_i_ps:
-                    my_valid_ips.append(ip)
+                    candidate_ips.append(ip)
 
         """
-            in order to assure absence of leftover ips, or ips which belong to
-            other nodes due to topology changes or pod migration, we create
-            the list my_valid_ips and check any found addresses in the provided
-            range against it.  this mechanism allows us to catch deletions -
-            without any persisted state outside of kubernetes or the currently
-            assigned addresses themselves.
-            """
-        for ip in my_valid_ips:
+        First we enforce the existance of all candidate ips.  provision_address is idempotent.
+        Then we enforce the absence of discovered ips which match the prefix L3LB_NETWORK but are not in the set candidate_ips.
+        This mechanism lets us garbage collect ips without persisting any state other than the configured prefix.
+        """
+        for ip in candidate_ips:
             provision_address(interface, ip, "/32", os)
 
         invalid_ips = list(
-            set(existing_ips_in_range(interface, network)).difference(my_valid_ips)
+            set(existing_ips_in_range(interface, network)).difference(candidate_ips)
         )
 
         for ip in invalid_ips:
