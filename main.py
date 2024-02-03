@@ -146,9 +146,9 @@ def existing_ips_in_range(dev, netifaces, net_range, ipaddress):
 
 
 if __name__ == "__main__":
-    if os.getenv("L3LB_IN_K8S"):
+    try:
         config.load_incluster_config()
-    else:
+    except config.config_exception.ConfigException:
         config.load_kube_config()
 
     network = os.getenv("L3LB_NETWORK")
