@@ -7,4 +7,4 @@ copy requirements.txt requirements.txt
 run pip install -r requirements.txt --break-system-packages
 copy main.py /usr/sbin/l3lb
 
-cmd [ "python3", "/usr/sbin/l3lb" ]
+cmd [ "python3", "-u", "/usr/sbin/l3lb" ]
