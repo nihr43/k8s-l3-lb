@@ -111,10 +111,19 @@ def get_pods(client):
     """
     api = client.CoreV1Api()
     current_node = socket.gethostname()
-    all_pods = api.list_pod_for_all_namespaces()
-    local_pods = [pod for pod in all_pods.items if pod.spec.node_name == current_node]
-    running_pods = [pod for pod in local_pods if pod.status.phase == "Running"]
-    return running_pods
+    local_pods = api.list_pod_for_all_namespaces(
+        field_selector=f"spec.nodeName={current_node}"
+    ).items
+
+    valid_pods = []
+    for pod in local_pods:
+        if pod.status.phase == "Running" and all(
+            p.ready for p in pod.status.container_statuses
+        ):
+            if not pod.metadata.deletion_timestamp:
+                valid_pods.append(pod)
+
+    return valid_pods
 
 
 def get_loadbalancers(client):
