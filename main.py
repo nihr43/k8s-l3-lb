@@ -33,6 +33,11 @@ import random
 from time import sleep
 from kubernetes import client, config
 
+if os.getenv("L3LB_DEBUG"):
+    debug = True
+else:
+    debug = False
+
 
 def get_address_state(dev: str, address: str, netifaces) -> bool:
     """
@@ -57,6 +62,8 @@ def provision_address(dev: str, address: str, netmask: str, netifaces, os) -> No
     """
     assure an address is assigned to a device
     """
+    if debug:
+        print("{} is being enforced".format(address))
     if get_address_state(dev, address, netifaces) is False:
         print("assuming address " + address)
         os.system("ip address add " + address + netmask + " dev " + dev)
@@ -158,9 +165,12 @@ if __name__ == "__main__":
     print("using interface " + interface)
 
     while True:
-        my_valid_ips = []
         sleep(random.randrange(1, 10))
+        if debug:
+            start_time = datetime.now()
+
         pods = get_pods(client)
+        my_valid_ips = []
 
         for lb in get_loadbalancers(client):
             if local_pod_match(pods, lb):
@@ -186,3 +196,7 @@ if __name__ == "__main__":
 
         for ip in invalid_ips:
             enforce_no_address(interface, ip, "/32", netifaces, os)
+
+        if debug:
+            timediff = datetime.now() - start_time
+            print("reconciliation took {}\n".format(timediff))
