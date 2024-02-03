@@ -84,26 +84,24 @@ def local_pod_match(pods, lb) -> bool:
     determine if a LoadBalancer's 'selector' matches any local pods.
     this is a determining factor whether we enforce the address.
     """
-    matched_pods = []
-
     for pod in pods:
         for selector in lb.spec.selector:
-            # if a pod has any label that matches the lb's selector, it is considered a match
+            # if a pod has any label that matches the lb's selector, it is considered a match.
+            # we save a little effort by returning immediately; there is no need to know of multiple matches.
             if pod.metadata.labels.get(selector):
                 if pod.metadata.labels.get(selector) == lb.spec.selector.get(selector):
-                    print(
-                        "pod {} matches lb {} with selector {}={}".format(
-                            pod.metadata.name,
-                            lb.metadata.name,
-                            selector,
-                            lb.spec.selector.get(selector),
+                    if debug:
+                        print(
+                            "pod {} matches lb {} with selector {}={}".format(
+                                pod.metadata.name,
+                                lb.metadata.name,
+                                selector,
+                                lb.spec.selector.get(selector),
+                            )
                         )
-                    )
-                    matched_pods.append(pod)
-    if len(matched_pods) == 0:
-        return False
-    else:
-        return True
+                    return True
+
+    return False
 
 
 def get_pods(client):
