@@ -166,10 +166,10 @@ if __name__ == "__main__":
     except config.config_exception.ConfigException:
         config.load_kube_config()
 
-    network = os.getenv("L3LB_NETWORK")
+    prefix = os.getenv("L3LB_PREFIX")
     interface = os.getenv("L3LB_INTERFACE")
 
-    print("using network " + network)
+    print("using prefix " + prefix)
     print("using interface " + interface)
 
     while True:
@@ -187,14 +187,14 @@ if __name__ == "__main__":
 
         """
         First we enforce the existance of all candidate ips.  provision_address is idempotent.
-        Then we enforce the absence of discovered ips which match the prefix L3LB_NETWORK but are not in the set candidate_ips.
+        Then we enforce the absence of discovered ips which match the prefix L3LB_PREFIX but are not in the set candidate_ips.
         This mechanism lets us garbage collect ips without persisting any state other than the configured prefix.
         """
         for ip in candidate_ips:
             provision_address(interface, ip, "/32", os)
 
         invalid_ips = list(
-            set(existing_ips_in_range(interface, network)).difference(candidate_ips)
+            set(existing_ips_in_range(interface, prefix)).difference(candidate_ips)
         )
 
         for ip in invalid_ips:

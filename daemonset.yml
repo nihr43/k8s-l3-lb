@@ -20,7 +20,7 @@ spec:
       - name: l3lb
         image: images.local:30500/l3lb
         env:
-        - name: "L3LB_NETWORK"
+        - name: "L3LB_PREFIX"
           value: "10.0.100.0/24"
         - name: "L3LB_INTERFACE"
           value: "lo"
