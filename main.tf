@@ -1,3 +1,6 @@
+variable "prefix" {}
+variable "interface" {}
+
 resource "kubernetes_daemonset" "l3lb" {
   metadata {
     name      = "l3lb"
@@ -32,12 +35,12 @@ resource "kubernetes_daemonset" "l3lb" {
 
           env {
             name  = "L3LB_PREFIX"
-            value = "10.0.100.0/24"
+            value = var.prefix
           }
 
           env {
             name  = "L3LB_INTERFACE"
-            value = "lo"
+            value = var.interface
           }
 
           security_context {

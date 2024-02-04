@@ -10,9 +10,21 @@ This differs from metallb in bgp mode as this daemon does not peer with bgp itse
 
 ## installation
 
-l3lb can run as either a daemonset or a systemd unit.  For a 'classic' systemd unit installation, see `ansible_installation.example`.
+l3lb is intended to be run as a daemonset.  `daemonset.yml` is included, as well as terraform module `main.yml`.  To pull the terraform module into a project and update:
 
-Alternatively, l3lb can run as daemonset within k8s itself.  `kubectl apply -f daemonset.yml`.  Three capabilities are mapped into the containers to allow this to work: `hostNetwork: true`, `automountServiceAccountToken: true`, `capabilities: add: ["NET_ADMIN"]`.  This style of approach is used by the likes of metallb, traefik, rook, calico, etc.
+```
+mkdur -p modules
+git -C modules submodule add git@github.com:nihr43/k8s-l3-lb.git
+git submodule update --recursive --remote
+```
+
+```
+module "l3lb" {
+  source    = "./modules/k8s-l3-lb"
+  prefix    = "10.0.100.0/24"
+  interface = "lo"
+}
+```
 
 Assuming the existence of a docker registry at `images.local:5000`, `make` will build and push the project.
 `daemonset.yml` references this uri.
