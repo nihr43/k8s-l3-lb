@@ -10,3 +10,4 @@ doctest:
 lint:
 	black main.py
 	flake8 main.py --ignore=E501
+	tofu fmt
