@@ -106,7 +106,7 @@ def local_pod_match(pods, lb) -> bool:
 
 def get_pods(client):
     """
-    get all running local pods
+    get a list of local, running, ready, non-terminating pods
     """
     api = client.CoreV1Api()
     current_node = socket.gethostname()
