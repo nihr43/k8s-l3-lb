@@ -46,19 +46,14 @@ def get_address_state(dev: str, address: str) -> bool:
     """
     determine whether a given address is already assigned
     """
-    parsed_addresses = []
-    ifaces = netifaces.ifaddresses(dev)
+    # 2 is address family AF_INET aka ipv4
+    addresses = netifaces.ifaddresses(dev).get(2)
 
-    for i in ifaces:
-        for j in ifaces[i]:
-            for a, b in j.items():
-                if a == "addr":
-                    parsed_addresses.append(b)
+    for a in addresses:
+        if a.get("addr") == address:
+            return True
 
-    if address in parsed_addresses:
-        return True
-    else:
-        return False
+    return False
 
 
 def provision_address(dev: str, address: str, netmask: str) -> None:
