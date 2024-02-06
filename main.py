@@ -27,12 +27,14 @@ True
 
 import os
 import socket
-import netifaces
+import netifaces  # type: ignore
 import ipaddress
 import random
 from time import sleep
 from datetime import datetime
-from kubernetes import client, config
+from kubernetes import client, config  # type: ignore
+from typing import List
+from kubernetes.client.models import V1Pod, V1Service  # type: ignore
 
 if os.getenv("L3LB_DEBUG"):
     debug = True
@@ -59,7 +61,7 @@ def get_address_state(dev: str, address: str) -> bool:
         return False
 
 
-def provision_address(dev: str, address: str, netmask: str, os) -> None:
+def provision_address(dev: str, address: str, netmask: str) -> None:
     """
     assure an address is assigned to a device
     """
@@ -70,7 +72,7 @@ def provision_address(dev: str, address: str, netmask: str, os) -> None:
         os.system("ip address add " + address + netmask + " dev " + dev)
 
 
-def enforce_no_address(dev: str, address: str, netmask: str, os) -> None:
+def enforce_no_address(dev: str, address: str, netmask: str) -> None:
     """
     assure an address is not assigned to a device
     """
@@ -104,7 +106,7 @@ def local_pod_match(pods, lb) -> bool:
     return False
 
 
-def get_pods(client):
+def get_pods(client) -> List[V1Pod]:
     """
     get a list of local, running, ready, non-terminating pods
     """
@@ -125,7 +127,7 @@ def get_pods(client):
     return valid_pods
 
 
-def get_loadbalancers(client):
+def get_loadbalancers(client) -> List[V1Service]:
     """
     get a list of services of type LoadBalancer
     """
@@ -137,7 +139,7 @@ def get_loadbalancers(client):
     return lbs
 
 
-def existing_ips_in_range(dev, net_range):
+def existing_ips_in_range(dev: str, net_range: str):
     """
     get a list of all ips in range which are currently assigned to an interface
     """
@@ -167,10 +169,12 @@ if __name__ == "__main__":
         config.load_kube_config()
 
     prefix = os.getenv("L3LB_PREFIX")
-    interface = os.getenv("L3LB_INTERFACE")
+    interface = os.getenv("L3LB_INTERFACE", "lo")
+    if not prefix:
+        raise (KeyError)
 
-    print("using prefix " + prefix)
-    print("using interface " + interface)
+    print(f"using prefix {prefix}")
+    print(f"using interface {interface}")
 
     while True:
         sleep(random.randrange(1, 10))
@@ -191,14 +195,14 @@ if __name__ == "__main__":
         This mechanism lets us garbage collect ips without persisting any state other than the configured prefix.
         """
         for ip in candidate_ips:
-            provision_address(interface, ip, "/32", os)
+            provision_address(interface, ip, "/32")
 
         invalid_ips = list(
             set(existing_ips_in_range(interface, prefix)).difference(candidate_ips)
         )
 
         for ip in invalid_ips:
-            enforce_no_address(interface, ip, "/32", os)
+            enforce_no_address(interface, ip, "/32")
 
         if debug:
             timediff = datetime.now() - start_time
