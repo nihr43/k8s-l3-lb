@@ -1,5 +1,6 @@
 variable "prefix" {}
 variable "interface" {}
+variable "debug" {}
 
 resource "kubernetes_daemonset" "l3lb" {
   metadata {
@@ -32,6 +33,11 @@ resource "kubernetes_daemonset" "l3lb" {
         container {
           name  = "l3lb"
           image = "images.local:30500/l3lb"
+
+          env {
+            name  = "L3LB_DEBUG"
+            value = var.debug
+          }
 
           env {
             name  = "L3LB_PREFIX"
