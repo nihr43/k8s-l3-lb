@@ -36,7 +36,7 @@ from kubernetes import client, config  # type: ignore
 from typing import List
 from kubernetes.client.models import V1Pod, V1Service  # type: ignore
 
-if os.getenv("L3LB_DEBUG"):
+if os.getenv("L3LB_DEBUG") == "true":
     debug = True
 else:
     debug = False
