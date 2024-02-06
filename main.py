@@ -139,20 +139,16 @@ def existing_ips_in_range(dev: str, net_range: str):
     get a list of all ips in range which are currently assigned to an interface
     """
     parsed_addresses = []
-    ifaces = netifaces.ifaddresses(dev)
+    addresses = netifaces.ifaddresses(dev).get(2)
 
-    for i in ifaces:
-        for j in ifaces[i]:
-            for a, b in j.items():
-                if a == "addr":
-                    try:
-                        if type(ipaddress.ip_address(b)) is ipaddress.IPv4Address:
-                            if ipaddress.IPv4Address(b) in ipaddress.IPv4Network(
-                                net_range
-                            ):
-                                parsed_addresses.append(b)
-                    except ValueError:
-                        pass
+    for a in addresses:
+        try:
+            address = a.get("addr")
+            if type(ipaddress.ip_address(address)) is ipaddress.IPv4Address:
+                if ipaddress.IPv4Address(address) in ipaddress.IPv4Network(net_range):
+                    parsed_addresses.append(address)
+        except ValueError:
+            pass
 
     return parsed_addresses
 
