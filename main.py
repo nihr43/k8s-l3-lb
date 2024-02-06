@@ -132,11 +132,11 @@ def get_loadbalancers(client) -> List[V1Service]:
     get a list of services of type LoadBalancer
     """
     api = client.CoreV1Api()
-    lbs = []
-    for service in api.list_service_for_all_namespaces().items:
-        if service.spec.type == "LoadBalancer":
-            lbs.append(service)
-    return lbs
+    return [
+        service
+        for service in api.list_service_for_all_namespaces().items
+        if service.spec.type == "LoadBalancer"
+    ]
 
 
 def existing_ips_in_range(dev: str, net_range: str):
