@@ -15,7 +15,8 @@ build:
       - lint
   lint:
     input: |
-      main.py
+      *.py
+      *.tf
       Dockerfile
     cmd: |
       black main.py
