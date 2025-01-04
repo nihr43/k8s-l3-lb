@@ -8,33 +8,19 @@ False
 But we should have 127.0.0.1:
 >>> get_address_state('lo', '127.0.0.1', netifaces)
 True
-
->>> import pylxd
->>> client = pylxd.Client()
->>> config = {'name': 'l3lb-testing',
-...           'source': {'type': 'image',
-...                      'mode': 'pull',
-...                      'server': 'https://images.linuxcontainers.org',
-...                      'protocol': 'simplestreams',
-...                      'alias': 'alpine/edge'}}
->>> inst = client.instances.create(config, wait=True)
->>> inst.start(wait=True)
->>> inst.state().network['lo']['addresses'][0]
-{'family': 'inet', 'address': '127.0.0.1', 'netmask': '8', 'scope': 'local'}
->>> inst.stop(wait=True)
->>> inst.delete(wait=True)
 """
 
 import os
 import socket
 import netifaces  # type: ignore
 import ipaddress
-import random
-from time import sleep
+import queue
+import threading
 from datetime import datetime
-from kubernetes import client, config  # type: ignore
+from kubernetes import client, config, watch  # type: ignore
 from typing import List
 from kubernetes.client.models import V1Pod, V1Service  # type: ignore
+from kubernetes.client.exceptions import ApiException
 
 if os.getenv("L3LB_DEBUG") == "true":
     debug = True
@@ -101,11 +87,10 @@ def local_pod_match(pods, lb) -> bool:
     return False
 
 
-def get_pods(client) -> List[V1Pod]:
+def get_pods(api) -> List[V1Pod]:
     """
     get a list of local, running, ready, non-terminating pods
     """
-    api = client.CoreV1Api()
     current_node = socket.gethostname()
     local_pods = api.list_pod_for_all_namespaces(
         field_selector=f"spec.nodeName={current_node}"
@@ -122,11 +107,10 @@ def get_pods(client) -> List[V1Pod]:
     return valid_pods
 
 
-def get_loadbalancers(client) -> List[V1Service]:
+def get_loadbalancers(api) -> List[V1Service]:
     """
     get a list of services of type LoadBalancer
     """
-    api = client.CoreV1Api()
     return [
         service
         for service in api.list_service_for_all_namespaces().items
@@ -153,7 +137,109 @@ def existing_ips_in_range(dev: str, net_range: str):
     return parsed_addresses
 
 
-if __name__ == "__main__":
+def watch_services():
+    start_time = datetime.now()
+    config.load_kube_config()
+    v1 = client.CoreV1Api()
+    w = watch.Watch()
+    for event in w.stream(v1.list_service_for_all_namespaces):
+        service_event = {
+            "type": "service",
+            "event_type": event["type"],
+            "name": event["object"].metadata.name,
+        }
+        if (
+            event["object"].metadata.creation_timestamp.replace(tzinfo=None)
+            < start_time
+        ):
+            continue
+
+        # we dont need to trigger on service creation because
+        # there are sure to be subsequent endpoint events
+        if service_event["event_type"] != "ADDED":
+            event_queue.put(service_event)
+
+
+def watch_endpoints():
+    start_time = datetime.now()
+    config.load_kube_config()
+    v1 = client.CoreV1Api()
+    w = watch.Watch()
+    for event in w.stream(v1.list_endpoints_for_all_namespaces):
+        endpoint_event = {
+            "type": "endpoint",
+            "event_type": event["type"],
+            "name": event["object"].metadata.name,
+        }
+        if (
+            event["object"].metadata.creation_timestamp.replace(tzinfo=None)
+            < start_time
+        ):
+            continue
+        if (
+            endpoint_event["event_type"] != "ADDED"
+            and endpoint_event["event_type"] != "DELETED"
+        ):
+            event_queue.put(endpoint_event)
+
+
+def poll_queue(api, interface, prefix):
+    while True:
+        event = event_queue.get()
+        if event is None:
+            print("queue exiting")
+            break
+
+        if debug:
+            print(f"{event['type']} event: {event['event_type']} {event['name']}")
+
+        reconcile(api, interface, prefix)
+
+
+def reconcile(api, interface, prefix):
+    if debug:
+        start_time = datetime.now()
+
+    pods = get_pods(api)
+    candidate_ips = []
+
+    for lb in get_loadbalancers(api):
+        if local_pod_match(pods, lb):
+            candidate_ips.append(lb.spec.load_balancer_ip)
+            if (
+                lb.status.load_balancer.ingress is None
+                and lb.spec.load_balancer_ip is not None
+            ):
+                try:
+                    print("allocating static load_balancer_ip")
+                    lb.status.load_balancer.ingress = [{"ip": lb.spec.load_balancer_ip}]
+                    api.patch_namespaced_service_status(
+                        lb.metadata.name, lb.metadata.namespace, lb
+                    )
+                except ApiException as e:
+                    print(e)
+
+    """
+    First we enforce the existance of all candidate ips.  provision_address is idempotent.
+    Then we enforce the absence of discovered ips which match the prefix L3LB_PREFIX but are not in the set candidate_ips.
+    This mechanism lets us garbage collect ips without persisting any state other than the configured prefix.
+    """
+    for ip in candidate_ips:
+        provision_address(interface, ip, "/32")
+
+    invalid_ips = list(
+        set(existing_ips_in_range(interface, prefix)).difference(candidate_ips)
+    )
+
+    for ip in invalid_ips:
+        enforce_no_address(interface, ip, "/32")
+
+    if debug:
+        timediff = datetime.now() - start_time
+        print("reconciliation took {}\n".format(timediff))
+
+
+def main():
     try:
         config.load_incluster_config()
     except config.config_exception.ConfigException:
@@ -167,34 +253,23 @@ if __name__ == "__main__":
     print(f"using prefix {prefix}")
     print(f"using interface {interface}")
 
-    while True:
-        sleep(random.randrange(1, 10))
-        if debug:
-            start_time = datetime.now()
+    api = client.CoreV1Api()
+    reconcile(api, interface, prefix)
 
-        pods = get_pods(client)
-        candidate_ips = []
+    service_thread = threading.Thread(target=watch_services, daemon=True)
+    endpoints_thread = threading.Thread(target=watch_endpoints, daemon=True)
+    service_thread.start()
+    endpoints_thread.start()
 
-        for lb in get_loadbalancers(client):
-            if local_pod_match(pods, lb):
-                for ip in lb.spec.external_i_ps:
-                    candidate_ips.append(ip)
+    try:
+        poll_queue(api, interface, prefix)
+    except KeyboardInterrupt:
+        print("Stopping...")
+        event_queue.put(None)
+        service_thread.join()
+        endpoints_thread.join()
 
-        """
-        First we enforce the existance of all candidate ips.  provision_address is idempotent.
-        Then we enforce the absence of discovered ips which match the prefix L3LB_PREFIX but are not in the set candidate_ips.
-        This mechanism lets us garbage collect ips without persisting any state other than the configured prefix.
-        """
-        for ip in candidate_ips:
-            provision_address(interface, ip, "/32")
 
-        invalid_ips = list(
-            set(existing_ips_in_range(interface, prefix)).difference(candidate_ips)
-        )
-
-        for ip in invalid_ips:
-            enforce_no_address(interface, ip, "/32")
-
-        if debug:
-            timediff = datetime.now() - start_time
-            print("reconciliation took {}\n".format(timediff))
+if __name__ == "__main__":
+    event_queue = queue.Queue()
+    main()
