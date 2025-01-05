@@ -199,7 +199,6 @@ def reconcile(api, interface, prefix):
 
     for lb in get_loadbalancers(api):
         if local_pod_match(pods, lb):
-            candidate_ips.append(lb.spec.load_balancer_ip)
             if (
                 lb.status.load_balancer.ingress is None
                 and lb.spec.load_balancer_ip is not None
@@ -212,6 +211,7 @@ def reconcile(api, interface, prefix):
                     )
                 except ApiException as e:
                     print(e)
+            candidate_ips.append(lb.spec.load_balancer_ip)
 
     """
     First we enforce the existance of all candidate ips.  provision_address is idempotent.
