@@ -1,12 +1,60 @@
-# k8s-l3-lb
+# l3lb
 
-A pod-aware external LoadBalancer implementation for kubernetes in a pure-l3 network.  l3-lb is intended to run alongside [bgp on each k8s node](https://github.com/nihr43/bgp-unnumbered) in a baremetal cluster, resulting in a network where the routers themselves become aware of kubernetes service ips, and are able to route directly to the physical hosts running the matched pods.  If replicas > 1, a single ip is duplicated in an anycast arrangement, enabling equal-cost-multipath load balancing from the perspective of an equally-connected router.
+An external LoadBalancer implementation for kubernetes in a pure-l3 network.  l3lb is intended to run alongside [bgp on each k8s node](https://github.com/nihr43/bgp-unnumbered) in a baremetal cluster, resulting in a network where the routers themselves become aware of kubernetes service ips, and are able to route directly to the physical hosts running the matched pods.  If replicas > 1, a single ip is duplicated in an anycast arrangement, enabling equal-cost-multipath load balancing from the perspective of an equally-connected router.
 
 ## implementation
 
-This project is similar to metallb, which is a vastly more complete solution.
+l3lb watches service and endpoint events and reconciles candidate ips for each node on each event.  The readiness of relevant pods is checked, so it will pull an ip if a pod is unhealthy, terminating, pending, etc.  Ips found on the interface belonging to the configured prefix which do not match any configured service are garbage collected on each tick - allowing us to avoid storing any other state.
 
-This differs from metallb in bgp mode as this daemon does not peer with bgp itself - the /32 loopback addresses provides a simple "interface" between the two systems.  FRR is configured to listen for and advertise any prefix found on the lo interface.  A caveat to this approach is that ingress controllers will not preserve source ips when handing off connections to backing services.  nginx-ingress for example will log the correct source ip of a request, but the backing service will see a request from the cluster ip of the ingress pod.  In the future i hope to experiment with advertising prefixes from python directly to remove the ExternalIP component.
+l3lb itself does not peer with bgp.  It is designed to run alongside an frr configuration such as this:
+
+```
+      frr defaults datacenter
+
+      router bgp {{hostvars["as_number"]}}
+        bgp router-id {{hostvars["loopback"]}}
+        bgp fast-convergence
+        bgp bestpath compare-routerid
+        bgp bestpath as-path multipath-relax
+{% for i in hostvars["bgp_interfaces"] %}
+        neighbor {{i}} interface remote-as external
+{% endfor %}
+        address-family ipv4 unicast
+          redistribute connected
+{% for i in hostvars["bgp_interfaces"] %}
+          neighbor {{i}} route-map default in
+{% endfor %}
+
+      ip prefix-list p1 permit 10.0.0.0/16 ge 32
+      ip prefix-list p1 permit 172.30.0.0/16 le 27
+      ip prefix-list p1 permit 0.0.0.0/0
+
+      route-map default permit 10
+        match ip address prefix-list p1
+```
+
+`redistribute connected` along with `permit 10.0.0.0/16 ge 32` causes frr to simply detect and advertise /32 addresses on `lo`.  An `L3LB_PREFIX` in this case might be `10.0.100.0/24`.
+
+An example manifest to provision 10.0.100.6 might look like this:
+
+```
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  ports:
+    - port: 80
+  selector:
+    app: nginx
+  type: LoadBalancer
+  loadBalancerIP: 10.0.100.6
+```
+
+I wrote l3lb to run on k8s hosts running bgp unnumbered.  Metallb in frr mode in my experience doesn't seem to play nice when you are already running frr on the host.
 
 ## installation
 
@@ -84,24 +132,4 @@ the following shows an anycast scenario: a stateless nginx deployment has been s
 	nexthop via inet6 fe80::aaa1:59ff:fe08:b8f4 dev enp3s6f1 weight 1
 	nexthop via inet6 fe80::d250:99ff:feda:f95a dev enp3s8f1 weight 1
 	nexthop via inet6 fe80::ae1f:6bff:fe20:b4e2 dev enp3s8f0 weight 1
-```
-
-example service manifest to provision 10.0.100.6 for deployment labeled 'app: nginx':
-
-```
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: nginx
-  labels:
-    app: nginx
-spec:
-  ports:
-    - port: 80
-  selector:
-    app: nginx
-  type: LoadBalancer
-  externalIPs:
-    - 10.0.100.6
 ```
