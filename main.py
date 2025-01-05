@@ -150,14 +150,12 @@ def watch_services():
         }
         if (
             event["object"].metadata.creation_timestamp.replace(tzinfo=None)
-            < start_time
+            > start_time
         ):
-            continue
-
-        # we dont need to trigger on service creation because
-        # there are sure to be subsequent endpoint events
-        if service_event["event_type"] != "ADDED":
-            event_queue.put(service_event)
+            # we dont need to trigger on service creation because
+            # there are sure to be subsequent endpoint events
+            if service_event["event_type"] in ["MODIFIED"]:
+                event_queue.put(service_event)
 
 
 def watch_endpoints():
@@ -173,14 +171,10 @@ def watch_endpoints():
         }
         if (
             event["object"].metadata.creation_timestamp.replace(tzinfo=None)
-            < start_time
+            > start_time
         ):
-            continue
-        if (
-            endpoint_event["event_type"] != "ADDED"
-            and endpoint_event["event_type"] != "DELETED"
-        ):
-            event_queue.put(endpoint_event)
+            if endpoint_event["event_type"] in ["MODIFIED", "DELETED"]:
+                event_queue.put(endpoint_event)
 
 
 def poll_queue(api, interface, prefix):
