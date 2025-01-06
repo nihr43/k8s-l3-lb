@@ -16,11 +16,13 @@ import netifaces  # type: ignore
 import ipaddress
 import queue
 import threading
-from datetime import datetime, timedelta
+import time
+from datetime import datetime
 from kubernetes import client, config, watch  # type: ignore
 from typing import List
 from kubernetes.client.models import V1Pod, V1Service  # type: ignore
 from kubernetes.client.exceptions import ApiException
+from urllib3.exceptions import ProtocolError, NewConnectionError, MaxRetryError
 
 if os.getenv("L3LB_DEBUG") == "true":
     debug = True
@@ -141,41 +143,47 @@ def watch_services():
     config.load_kube_config()
     v1 = client.CoreV1Api()
     w = watch.Watch()
-    for event in w.stream(v1.list_service_for_all_namespaces):
-        service_event = {
-            "type": "service",
-            "event_type": event["type"],
-            "name": event["object"].metadata.name,
-            "time": datetime.now(),
-        }
-        # we dont need to trigger on service creation because
-        # there are sure to be subsequent endpoint events
-        if service_event["event_type"] in ["MODIFIED"]:
-            event_queue.put(service_event)
+    while True:
+        try:
+            for event in w.stream(v1.list_service_for_all_namespaces):
+                service_event = {
+                    "type": "service",
+                    "event_type": event["type"],
+                    "name": event["object"].metadata.name,
+                    "time": datetime.now(),
+                }
+                # we dont need to trigger on service creation because
+                # there are sure to be subsequent endpoint events
+                if service_event["event_type"] in ["MODIFIED"]:
+                    event_queue.put(service_event)
+        except (ProtocolError, NewConnectionError, MaxRetryError, ApiException) as e:
+            print(e)
+            time.sleep(1)
 
 
 def watch_endpoints():
     config.load_kube_config()
     v1 = client.CoreV1Api()
     w = watch.Watch()
-    for event in w.stream(v1.list_endpoints_for_all_namespaces):
-        endpoint_event = {
-            "type": "endpoint",
-            "event_type": event["type"],
-            "name": event["object"].metadata.name,
-            "time": datetime.now(),
-        }
-        if endpoint_event["event_type"] in ["MODIFIED", "DELETED"]:
-            event_queue.put(endpoint_event)
+    while True:
+        try:
+            for event in w.stream(v1.list_endpoints_for_all_namespaces):
+                endpoint_event = {
+                    "type": "endpoint",
+                    "event_type": event["type"],
+                    "name": event["object"].metadata.name,
+                    "time": datetime.now(),
+                }
+                if endpoint_event["event_type"] in ["MODIFIED", "DELETED"]:
+                    event_queue.put(endpoint_event)
+        except (ProtocolError, NewConnectionError, MaxRetryError, ApiException) as e:
+            print(e)
+            time.sleep(1)
 
 
 def poll_queue(api, interface, prefix):
-    start_time = datetime.now()
     while True:
         event = event_queue.get()
-        if event["time"] - start_time < timedelta(seconds=10):
-            print("skipping startup event inrush")
-            continue
         if event is None:
             print("queue exiting")
             break
