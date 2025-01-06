@@ -16,7 +16,7 @@ import netifaces  # type: ignore
 import ipaddress
 import queue
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta
 from kubernetes import client, config, watch  # type: ignore
 from typing import List
 from kubernetes.client.models import V1Pod, V1Service  # type: ignore
@@ -138,7 +138,6 @@ def existing_ips_in_range(dev: str, net_range: str):
 
 
 def watch_services():
-    start_time = datetime.now()
     config.load_kube_config()
     v1 = client.CoreV1Api()
     w = watch.Watch()
@@ -147,19 +146,15 @@ def watch_services():
             "type": "service",
             "event_type": event["type"],
             "name": event["object"].metadata.name,
+            "time": datetime.now(),
         }
-        if (
-            event["object"].metadata.creation_timestamp.replace(tzinfo=None)
-            > start_time
-        ):
-            # we dont need to trigger on service creation because
-            # there are sure to be subsequent endpoint events
-            if service_event["event_type"] in ["MODIFIED"]:
-                event_queue.put(service_event)
+        # we dont need to trigger on service creation because
+        # there are sure to be subsequent endpoint events
+        if service_event["event_type"] in ["MODIFIED"]:
+            event_queue.put(service_event)
 
 
 def watch_endpoints():
-    start_time = datetime.now()
     config.load_kube_config()
     v1 = client.CoreV1Api()
     w = watch.Watch()
@@ -168,18 +163,19 @@ def watch_endpoints():
             "type": "endpoint",
             "event_type": event["type"],
             "name": event["object"].metadata.name,
+            "time": datetime.now(),
         }
-        if (
-            event["object"].metadata.creation_timestamp.replace(tzinfo=None)
-            > start_time
-        ):
-            if endpoint_event["event_type"] in ["MODIFIED", "DELETED"]:
-                event_queue.put(endpoint_event)
+        if endpoint_event["event_type"] in ["MODIFIED", "DELETED"]:
+            event_queue.put(endpoint_event)
 
 
 def poll_queue(api, interface, prefix):
+    start_time = datetime.now()
     while True:
         event = event_queue.get()
+        if event["time"] - start_time < timedelta(seconds=10):
+            print("skipping startup event inrush")
+            continue
         if event is None:
             print("queue exiting")
             break
@@ -257,7 +253,7 @@ def main():
 
     try:
         poll_queue(api, interface, prefix)
-    except KeyboardInterrupt:
+    finally:
         print("Stopping...")
         event_queue.put(None)
         service_thread.join()
