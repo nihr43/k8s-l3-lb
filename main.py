@@ -62,7 +62,7 @@ def enforce_no_address(dev: str, address: str, netmask: str) -> None:
         os.system("ip address del " + address + netmask + " dev " + dev)
 
 
-def local_pod_match(pods, lb) -> bool:
+def pod_match_lb(pods, lb) -> bool:
     """
     determine if a LoadBalancer's 'selector' matches any local pods.
     this is a determining factor whether we enforce the address.
@@ -87,7 +87,7 @@ def local_pod_match(pods, lb) -> bool:
     return False
 
 
-def get_pods(api) -> List[V1Pod]:
+def local_ready_pods(api) -> List[V1Pod]:
     """
     get a list of local, running, ready, non-terminating pods
     """
@@ -194,11 +194,11 @@ def reconcile(api, interface, prefix):
     if debug:
         start_time = datetime.now()
 
-    pods = get_pods(api)
+    pods = local_ready_pods(api)
     candidate_ips = []
 
     for lb in get_loadbalancers(api):
-        if local_pod_match(pods, lb):
+        if pod_match_lb(pods, lb):
             if (
                 lb.status.load_balancer.ingress is None
                 and lb.spec.load_balancer_ip is not None
