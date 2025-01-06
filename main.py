@@ -155,7 +155,13 @@ def watch_services():
                 # there are sure to be subsequent endpoint events
                 if service_event["event_type"] in ["MODIFIED"]:
                     event_queue.put(service_event)
-        except (ProtocolError, NewConnectionError, MaxRetryError, ApiException) as e:
+        except (
+            ProtocolError,
+            NewConnectionError,
+            MaxRetryError,
+            ApiException,
+            ConnectionRefusedError,
+        ) as e:
             print(e)
             time.sleep(1)
 
@@ -175,7 +181,13 @@ def watch_endpoints():
                 }
                 if endpoint_event["event_type"] in ["MODIFIED", "DELETED"]:
                     event_queue.put(endpoint_event)
-        except (ProtocolError, NewConnectionError, MaxRetryError, ApiException) as e:
+        except (
+            ProtocolError,
+            NewConnectionError,
+            MaxRetryError,
+            ApiException,
+            ConnectionRefusedError,
+        ) as e:
             print(e)
             time.sleep(1)
 
