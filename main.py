@@ -37,11 +37,10 @@ def get_address_state(dev: str, address: str) -> bool:
     # 2 is address family AF_INET aka ipv4
     addresses = netifaces.ifaddresses(dev).get(2)
 
-    for a in addresses:
-        if a.get("addr") == address:
-            return True
-
-    return False
+    if any(a.get("addr") == address for a in addresses):
+        return True
+    else:
+        return False
 
 
 def provision_address(dev: str, address: str, netmask: str) -> None:
