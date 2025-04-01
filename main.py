@@ -72,7 +72,7 @@ def pod_match_lb(pods, lb) -> bool:
         for selector in lb.spec.selector:
             # if a pod has any label that matches the lb's selector, it is considered a match.
             # we save a little effort by returning immediately; there is no need to know of multiple matches.
-            if pod.metadata.labels.get(selector):
+            if selector == "app":
                 if pod.metadata.labels.get(selector) == lb.spec.selector.get(selector):
                     if debug:
                         print(
@@ -217,6 +217,10 @@ def reconcile(api, interface, prefix):
             if (
                 lb.status.load_balancer.ingress is None
                 and lb.spec.load_balancer_ip is not None
+            ) or (
+                lb.status.load_balancer.ingress[0].ip is not None
+                and lb.spec.load_balancer_ip is not None
+                and lb.status.load_balancer.ingress[0].ip != lb.spec.load_balancer_ip
             ):
                 try:
                     print("allocating static load_balancer_ip")
