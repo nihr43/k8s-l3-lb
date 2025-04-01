@@ -1,10 +1,10 @@
 { nixpkgs ? import <nixpkgs> {  } }:
 
 let
-  pkgs = with nixpkgs.python312Packages; [
-    kubernetes
-    kubernetes-asyncio
-    netifaces
+  pkgs = with nixpkgs; [
+    iproute2
+    python312Packages.kubernetes
+    python312Packages.netifaces
   ];
 
 in
