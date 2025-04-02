@@ -269,6 +269,28 @@ def main():
     api = client.CoreV1Api()
     reconcile(api, interface, prefix)
 
+    """
+    watch_services and watch_endpoints exist to filter down to the minimum set
+    of k8s events that we trigger reconciliation on.  these are combined into a
+    global buffer, which is polled by the main thread.  for each event, we
+    determine if any local pods match any lb definitions, and provision ips as
+    appropriate.  Event contents themselves are not actually used, just the
+    fact that they happened - they do not contain enough data to rely on soley.
+    This daemon runs on all k8s nodes.
+
+    tradeoffs:
+    - no mutual cooperation required
+    - no controller required; each node acts according to its own pods
+    - tolerant to many types of intermittent availability of daemon / api
+    - each daemon has to run local_pod_match() logic for every event:
+    - -> will not scale on large clusters.  too many non-ops.
+
+    next major iteration may feature a central "controller" to sort through
+    events.  Investigate pushing our own events to k8s api itself, designed
+    to be cheap for per-node agents to filter through and directly act on with
+    minimal-to-zero additional api calls.
+    """
+
     service_thread = threading.Thread(target=watch_services, daemon=True)
     endpoints_thread = threading.Thread(target=watch_endpoints, daemon=True)
     service_thread.start()
